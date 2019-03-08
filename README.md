@@ -6,7 +6,7 @@ Currently the simplest way to install the code is to copy the `cesium_model_anim
 
 ## Examples
 ### Basic usage
-First load the animation set from the glTF file. Currently only .glb format with embedded asset data are supported.
+First load the animation set from the glTF file. Currently only .glb format with embedded asset data is supported.
 ```
 let animation_set = await AnimationParser.parseAnimationSetFromFile('../assets/my_model.glb');
 ```
@@ -44,7 +44,7 @@ for(var i = 0; i < player.animations.length; i++) {
   console.log(player.animations[i].name);
 }
 
-//get keyframe information for the current animation (or any animation)
+// get keyframe information for the current animation (or any animation)
 for(track in player.current_animation.tracks) {
     console.log(track.translation_keys);
     console.log(track.rotation_keys);
