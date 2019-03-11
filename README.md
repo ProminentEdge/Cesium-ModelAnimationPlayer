@@ -53,6 +53,8 @@ for(track in player.current_animation.tracks) {
 ```
 
 ## Notes and TODOs
+* Models and animations must conform to glTF 2.0 spec
+* In order for exported models/animations to be compatible with the player all nodes must be named.
 * As mentioned previously, currently only the .glb format is compatible with this system with the animation data embedded in the binary. If there is an urgent need for supporting standard glTF format please create an issue and let us know.
 * While the glTF format allows for byte, short, int, and float component types for rotations (`Vec4`), the parser currently assumes floats only.
 * Currently the `play()` method operates on the main thread via `setInterval`. In the future this should be re-worked to make use of web workers.
