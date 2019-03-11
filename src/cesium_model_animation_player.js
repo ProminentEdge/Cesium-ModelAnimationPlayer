@@ -457,7 +457,7 @@ export class AnimationParser {
     return animations;
   }
 
-  static async parseAnimationSetFromFile(glb_uri) {
+  static async parseAnimationSetFromUri(glb_uri) {
     let array_buffer = await this._getResourceAsync(glb_uri);
 
     let animation_nodes = AnimationParser.parseAnimationNodesFromArrayBuffer(array_buffer);
@@ -471,4 +471,19 @@ export class AnimationParser {
     console.log(nodes_dict);
     return new AnimationSet(animations, nodes_dict);
   }
+
+  static async parseAnimationSetFromFile(glb_file) {
+      let array_buffer = await this._readFileAsync(glb_file);
+
+      let animation_nodes = AnimationParser.parseAnimationNodesFromArrayBuffer(array_buffer);
+      // convert nodes to dictionary format
+      let nodes_dict = {};
+      for(var i = 0; i < animation_nodes.length; i++) {
+        nodes_dict[animation_nodes[i].name] = animation_nodes[i];
+      }
+
+      let animations = AnimationParser.parseAnimationsFromArrayBuffer(array_buffer);
+      console.log(nodes_dict);
+      return new AnimationSet(animations, nodes_dict);
+    }
 };
