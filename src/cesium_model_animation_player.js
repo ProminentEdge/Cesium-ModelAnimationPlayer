@@ -19,7 +19,7 @@ export class AnimationTrack {
 };
 
 export class Animation {
-  constructor(name, nodes) {
+  constructor(name) {
     this.name = name;
     this.duration = 0;
     this.tracks = {}; // a dictionary whose keys are node names
@@ -351,7 +351,7 @@ export class AnimationParser {
       let anim_name = gltf_json.animations[i].name;
       if(typeof anim_name == 'undefined' || anim_name == "")
         anim_name = "animation_" + i;
-      let curr_animation = new Animation(anim_name, gltf_json.nodes);
+      let curr_animation = new Animation(anim_name);
       console.log("processing animation: " + anim_name);
 
       for(var k = 0; k < gltf_json.animations[i].channels.length; k++) {
