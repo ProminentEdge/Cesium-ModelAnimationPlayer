@@ -273,7 +273,9 @@ export class AnimationPlayer {
   }
 
   pause() {
-    this.play_state = PLAY_STATE.PAUSE;
+    //no need to pause if we are not playing
+    if(this.play_state === PLAY_STATE.PLAY)
+      this.play_state = PLAY_STATE.PAUSE;
   }
 }
 
