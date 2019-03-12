@@ -33,8 +33,8 @@ define([
   }
 
   module.AnimationPlayer = function(animation_set, entity, fps) {
-    this.loop_type = LOOP_TYPE.CLAMP;
-    this.play_state = PLAY_STATE.STOP;
+    this.loop_type = module.LOOP_TYPE.CLAMP;
+    this.play_state = module.PLAY_STATE.STOP;
     this.animation_set = animation_set;
     this.current_animation = this.animation_set.animations[0];
     this.entity = entity;
@@ -72,12 +72,12 @@ define([
 
     this.play = function(animation_name) {
       if(typeof animation_name === 'undefined') {
-        if(this.play_state === PLAY_STATE.PLAY) {
+        if(this.play_state === module.PLAY_STATE.PLAY) {
           return;
-        } else if(this.play_state === PLAY_STATE.PAUSE) {
-          this.play_state = PLAY_STATE.PLAY;
-        } else if(this.play_state === PLAY_STATE.STOP) {
-          this.play_state = PLAY_STATE.PLAY;
+        } else if(this.play_state === module.PLAY_STATE.PAUSE) {
+          this.play_state = module.PLAY_STATE.PLAY;
+        } else if(this.play_state === module.PLAY_STATE.STOP) {
+          this.play_state = module.PLAY_STATE.PLAY;
           this.interval_id = window.setInterval(() => this._update(), this._frame_duration * 1000);
         }
         return;
@@ -87,12 +87,12 @@ define([
       for(var i = 0; i < animations.length; i++) {
         if(animations[i].name === animation_name) {
           this.current_animation = animations[i];
-          if(this.play_state === PLAY_STATE.PLAY) {
+          if(this.play_state === module.PLAY_STATE.PLAY) {
             return;
-          } else if(this.play_state === PLAY_STATE.PAUSE) {
-            this.play_state = PLAY_STATE.PLAY;
-          } else if(this.play_state === PLAY_STATE.STOP) {
-            this.play_state = PLAY_STATE.PLAY;
+          } else if(this.play_state === module.PLAY_STATE.PAUSE) {
+            this.play_state = module.PLAY_STATE.PLAY;
+          } else if(this.play_state === module.PLAY_STATE.STOP) {
+            this.play_state = module.PLAY_STATE.PLAY;
             this.interval_id = window.setInterval(() => this._update(), this._frame_duration * 1000);
           }
           return;
@@ -117,23 +117,23 @@ define([
     }
 
     this.setTime = function(current_time) {
-      if(this.play_state === PLAY_STATE.PAUSE)
+      if(this.play_state === module.PLAY_STATE.PAUSE)
         return;
 
       this.current_time = current_time;
       if(this.speed > 0) {
         if(this.current_time > this.current_animation.duration) {
-          if(this.loop_type === LOOP_TYPE.CLAMP) {
+          if(this.loop_type === module.LOOP_TYPE.CLAMP) {
             this.current_time = this.current_animation.duration;
-          } else if(this.loop_type === LOOP_TYPE.LOOP) {
+          } else if(this.loop_type === module.LOOP_TYPE.LOOP) {
             this.current_time = 0;
           }
         }
       } else if(this.speed < 0) {
         if(this.current_time < 0) {
-          if(this.loop_type === LOOP_TYPE.CLAMP) {
+          if(this.loop_type === module.LOOP_TYPE.CLAMP) {
             this.current_time = 0;
-          } else if(this.loop_type === LOOP_TYPE.LOOP) {
+          } else if(this.loop_type === module.LOOP_TYPE.LOOP) {
             this.current_time = this.current_animation.duration;
           }
         }
@@ -252,7 +252,7 @@ define([
     }
 
     this.stop = function() {
-      this.play_state = PLAY_STATE.STOP;
+      this.play_state = module.PLAY_STATE.STOP;
 
       //reset the node transforms on the entity to the default pose
       var cesium_nodes = {};
@@ -272,8 +272,8 @@ define([
 
     this.pause = function() {
       //no need to pause if we are not playing
-      if(this.play_state === PLAY_STATE.PLAY)
-        this.play_state = PLAY_STATE.PAUSE;
+      if(this.play_state === module.PLAY_STATE.PLAY)
+        this.play_state = module.PLAY_STATE.PAUSE;
     }
   }
 
