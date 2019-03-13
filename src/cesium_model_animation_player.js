@@ -157,7 +157,7 @@ export class AnimationPlayer {
 
         let orig_trans = this.animation_set.nodes[track_name].translation;
         if(curr_trans_keys[0].time == curr_trans_keys[1].time) {
-          let result = Cesium.Cartesian3(curr_trans_keys[0].value[0] - orig_trans[0], curr_trans_keys[0].value[1] - orig_trans[1], curr_trans_keys[0].value[2] - orig_trans[2]);
+          let result = new Cesium.Cartesian3(curr_trans_keys[0].value[0] - orig_trans[0], curr_trans_keys[0].value[1] - orig_trans[1], curr_trans_keys[0].value[2] - orig_trans[2]);
           this.entity.model.nodeTransformations[track_name].translation = result;
         } else {
           let keyDelta = curr_trans_keys[1].time - curr_trans_keys[0].time;
@@ -183,7 +183,7 @@ export class AnimationPlayer {
         Cesium.Quaternion.inverse(orig, orig_inv);
 
         if(curr_rot_keys[0].time == curr_rot_keys[1].time) {
-          let result = Cesium.Quaternion(curr_rot_keys[0].value[0], curr_rot_keys[0].value[1], curr_rot_keys[0].value[2], curr_rot_keys[0].value[3]);
+          let result = new Cesium.Quaternion(curr_rot_keys[0].value[0], curr_rot_keys[0].value[1], curr_rot_keys[0].value[2], curr_rot_keys[0].value[3]);
           Cesium.Quaternion.multiply(result, orig_inv, result);
           this.entity.model.nodeTransformations[track_name].rotation = result;
         } else {
@@ -209,7 +209,7 @@ export class AnimationPlayer {
         let orig_scale = this.animation_set.nodes[track_name].scale;
 
         if(curr_scale_keys[0].time == curr_scale_keys[1].time) {
-          let result = Cesium.Cartesian3(curr_scale_keys[0].value[0] - orig_scale[0], curr_scale_keys[0].value[1] - orig_scale[1], curr_scale_keys[0].value[2] - orig_scale[2]);
+          let result = new Cesium.Cartesian3(curr_scale_keys[0].value[0] - orig_scale[0], curr_scale_keys[0].value[1] - orig_scale[1], curr_scale_keys[0].value[2] - orig_scale[2]);
           this.entity.model.nodeTransformations[track_name].scale = result;
         } else {
           let keyDelta = curr_scale_keys[1].time - curr_scale_keys[0].time;
@@ -467,6 +467,12 @@ export class AnimationParser {
     let nodes_dict = {};
     for(var i = 0; i < animation_nodes.length; i++) {
       nodes_dict[animation_nodes[i].name] = animation_nodes[i];
+      if(typeof nodes_dict[animation_nodes[i].name].translation === 'undefined')
+        nodes_dict[animation_nodes[i].name].translation = [0,0,0];
+      if(typeof nodes_dict[animation_nodes[i].name].rotation === 'undefined')
+        nodes_dict[animation_nodes[i].name].rotation = [0,0,0,1];
+      if(typeof nodes_dict[animation_nodes[i].name].scale === 'undefined')
+        nodes_dict[animation_nodes[i].name].scale = [0,0,0];
     }
 
     let animations = AnimationParser.parseAnimationsFromArrayBuffer(array_buffer);
@@ -482,6 +488,12 @@ export class AnimationParser {
       let nodes_dict = {};
       for(var i = 0; i < animation_nodes.length; i++) {
         nodes_dict[animation_nodes[i].name] = animation_nodes[i];
+        if(typeof nodes_dict[animation_nodes[i].name].translation === 'undefined')
+          nodes_dict[animation_nodes[i].name].translation = [0,0,0];
+        if(typeof nodes_dict[animation_nodes[i].name].rotation === 'undefined')
+          nodes_dict[animation_nodes[i].name].rotation = [0,0,0,1];
+        if(typeof nodes_dict[animation_nodes[i].name].scale === 'undefined')
+          nodes_dict[animation_nodes[i].name].scale = [0,0,0];
       }
 
       let animations = AnimationParser.parseAnimationsFromArrayBuffer(array_buffer);
