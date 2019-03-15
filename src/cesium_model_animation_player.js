@@ -299,7 +299,12 @@ export class AnimationParser {
       var req = new Request(uri);
 
       fetch(req).then(function(response) {
-        resolve(response.arrayBuffer());
+        if (!response.ok) {
+          reject(new Error(response.statusText));
+        }
+        return response;
+      }).then(function(response) {
+          resolve(response.arrayBuffer());
       });
     });
   }
