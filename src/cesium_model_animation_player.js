@@ -242,14 +242,14 @@ export class AnimationPlayer {
         let orig_scale = this.animation_set.nodes[track_name].scale;
 
         if(curr_scale_keys[0].time == curr_scale_keys[1].time) {
-          let result = new Cesium.Cartesian3(curr_scale_keys[0].value[0] - orig_scale[0], curr_scale_keys[0].value[1] - orig_scale[1], curr_scale_keys[0].value[2] - orig_scale[2]);
+          let result = new Cesium.Cartesian3(curr_scale_keys[0].value[0] / orig_scale[0], curr_scale_keys[0].value[1] / orig_scale[1], curr_scale_keys[0].value[2] / orig_scale[2]);
           this.entity.model.nodeTransformations[track_name].scale = result;
         } else {
           let keyDelta = curr_scale_keys[1].time - curr_scale_keys[0].time;
           let timeDelta = this.current_time - curr_scale_keys[0].time;
           let t = timeDelta/keyDelta;
-          let start = new Cesium.Cartesian3(curr_scale_keys[0].value[0] - orig_scale[0], curr_scale_keys[0].value[1] - orig_scale[1], curr_scale_keys[0].value[2] - orig_scale[2]);
-          let end = new Cesium.Cartesian3(curr_scale_keys[1].value[0] - orig_scale[0], curr_scale_keys[1].value[1] - orig_scale[1], curr_scale_keys[1].value[2] - orig_scale[2]);
+          let start = new Cesium.Cartesian3(curr_scale_keys[0].value[0] / orig_scale[0], curr_scale_keys[0].value[1] / orig_scale[1], curr_scale_keys[0].value[2] / orig_scale[2]);
+          let end = new Cesium.Cartesian3(curr_scale_keys[1].value[0] / orig_scale[0], curr_scale_keys[1].value[1] / orig_scale[1], curr_scale_keys[1].value[2] / orig_scale[2]);
           let result = new Cesium.Cartesian3();
           Cesium.Cartesian3.lerp(start, end, t, result);
           this.entity.model.nodeTransformations[track_name].scale = result;

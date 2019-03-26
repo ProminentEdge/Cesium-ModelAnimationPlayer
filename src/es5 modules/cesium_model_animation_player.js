@@ -241,14 +241,14 @@ define([
         if(curr_scale_keys.length > 0) {
           var orig_scale = node.scale;
           if(curr_scale_keys[0].time == curr_scale_keys[1].time) {
-            var result = Cesium.Cartesian3(curr_scale_keys[0].value[0] - orig_scale[0], curr_scale_keys[0].value[1] - orig_scale[1], curr_scale_keys[0].value[2] - orig_scale[2]);
+            var result = Cesium.Cartesian3(curr_scale_keys[0].value[0] / orig_scale[0], curr_scale_keys[0].value[1] / orig_scale[1], curr_scale_keys[0].value[2] / orig_scale[2]);
             this.entity.model.nodeTransformations[track_name].scale = result;
           } else {
             var keyDelta = curr_scale_keys[1].time - curr_scale_keys[0].time;
             var timeDelta = this.current_time - curr_scale_keys[0].time;
             var t = timeDelta/keyDelta;
-            var start = new Cesium.Cartesian3(curr_scale_keys[0].value[0] - orig_scale[0], curr_scale_keys[0].value[1] - orig_scale[1], curr_scale_keys[0].value[2] - orig_scale[2]);
-            var end = new Cesium.Cartesian3(curr_scale_keys[1].value[0] - orig_scale[0], curr_scale_keys[1].value[1] - orig_scale[1], curr_scale_keys[1].value[2] - orig_scale[2]);
+            var start = new Cesium.Cartesian3(curr_scale_keys[0].value[0] / orig_scale[0], curr_scale_keys[0].value[1] / orig_scale[1], curr_scale_keys[0].value[2] / orig_scale[2]);
+            var end = new Cesium.Cartesian3(curr_scale_keys[1].value[0] / orig_scale[0], curr_scale_keys[1].value[1] / orig_scale[1], curr_scale_keys[1].value[2] / orig_scale[2]);
             var result = new Cesium.Cartesian3();
             Cesium.Cartesian3.lerp(start, end, t, result);
             this.entity.model.nodeTransformations[track_name].scale = result;
