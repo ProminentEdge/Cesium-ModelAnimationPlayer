@@ -144,6 +144,7 @@ define([
         //if(track_name != "SA_ROT_0FBXASC04548")
         //  continue;
         var track = this.current_animation.tracks[track_name];
+        var node = this.animation_set.nodes[track_name];
         var curr_trans_keys = this.getKeysAtTime(track.translation_keys, this.current_time);
         var curr_rot_keys = this.getKeysAtTime(track.rotation_keys, this.current_time);
         var curr_scale_keys = this.getKeysAtTime(track.scale_keys, this.current_time);
@@ -153,7 +154,7 @@ define([
         //--------------------------
         if(curr_trans_keys.length > 0) {
 
-          var orig_trans = this.animation_set.nodes[track_name].translation;
+          var orig_trans = node.translation;
           if(curr_trans_keys[0].time == curr_trans_keys[1].time) {
             var result = new Cesium.Cartesian3(curr_trans_keys[0].value[0] - orig_trans[0], curr_trans_keys[0].value[1] - orig_trans[1], curr_trans_keys[0].value[2] - orig_trans[2]);
             this.entity.model.nodeTransformations[track_name].translation = result;
@@ -175,13 +176,27 @@ define([
         if(curr_rot_keys.length > 0) {
 
           //first store the original rotation and it's inverse so we can calculate the incremental rotations
-          var orig_rot = this.animation_set.nodes[track_name].rotation;
+          var orig_rot = node.rotation;
           var orig = new Cesium.Quaternion(orig_rot[0], orig_rot[1], orig_rot[2], orig_rot[3]);
-          var orig_inv = new Cesium.Quaternion(0,0,0,1);
+          var orig_inv = new Cesium.Quaternion();
           Cesium.Quaternion.inverse(orig, orig_inv);
+          let invMat = new Cesium.Matrix3();
+          Cesium.Matrix3.fromQuaternion(orig_inv, invMat);
 
           if(curr_rot_keys[0].time == curr_rot_keys[1].time) {
             var result = new Cesium.Quaternion(curr_rot_keys[0].value[0], curr_rot_keys[0].value[1], curr_rot_keys[0].value[2], curr_rot_keys[0].value[3]);
+            //isolate the axis
+            var resultAxis = new Cesium.Cartesian3(1,0,0);
+            var resultAngle = Cesium.Quaternion.computeAngle(result);
+            if(Math.abs(resultAngle) > Cesium.Math.EPSILON5)
+              Cesium.Quaternion.computeAxis(result, resultAxis);
+
+            //transform to local node space
+            Cesium.Matrix3.multiplyByVector(invMat, resultAxis, resultAxis);
+
+            //get the new quaternion expressed in local node space
+            Cesium.Quaternion.fromAxisAngle(resultAxis, resultAngle, result);
+            //calc the rotation difference
             Cesium.Quaternion.multiply(result, orig_inv, result);
             this.entity.model.nodeTransformations[track_name].rotation = result;
           } else {
@@ -191,10 +206,30 @@ define([
             var start = new Cesium.Quaternion(curr_rot_keys[0].value[0], curr_rot_keys[0].value[1], curr_rot_keys[0].value[2], curr_rot_keys[0].value[3]);
             var end = new Cesium.Quaternion(curr_rot_keys[1].value[0], curr_rot_keys[1].value[1], curr_rot_keys[1].value[2], curr_rot_keys[1].value[3]);
 
+            //isolate the axis
+            var startAxis = new Cesium.Cartesian3(1,0,0);
+            var startAngle = Cesium.Quaternion.computeAngle(start);
+            if(Math.abs(startAngle) > Cesium.Math.EPSILON5)
+              Cesium.Quaternion.computeAxis(start, startAxis);
+
+            var endAxis = new Cesium.Cartesian3(1,0,0);
+            var endAngle = Cesium.Quaternion.computeAngle(end);
+            if(Math.abs(endAngle) > Cesium.Math.EPSILON5)
+              Cesium.Quaternion.computeAxis(end, endAxis);
+
+            //transform to local node space
+            Cesium.Matrix3.multiplyByVector(invMat, startAxis, startAxis);
+            Cesium.Matrix3.multiplyByVector(invMat, endAxis, endAxis);
+
+            //get the new quaternions expressed in local node space
+            Cesium.Quaternion.fromAxisAngle(startAxis, startAngle, start);
+            Cesium.Quaternion.fromAxisAngle(endAxis, endAngle, end);
+
+            //calc the rotation delta/difference
             Cesium.Quaternion.multiply(start, orig_inv, start);
             Cesium.Quaternion.multiply(end, orig_inv,  end);
 
-            var result = new Cesium.Quaternion(0,0,0,1);
+            var result = new Cesium.Quaternion();
             Cesium.Quaternion.slerp(start, end, t, result);
             this.entity.model.nodeTransformations[track_name].rotation = result;
           }
@@ -204,7 +239,7 @@ define([
         // Scale
         //--------------------------
         if(curr_scale_keys.length > 0) {
-          var orig_scale = this.animation_set.nodes[track_name].scale;
+          var orig_scale = node.scale;
           if(curr_scale_keys[0].time == curr_scale_keys[1].time) {
             var result = Cesium.Cartesian3(curr_scale_keys[0].value[0] - orig_scale[0], curr_scale_keys[0].value[1] - orig_scale[1], curr_scale_keys[0].value[2] - orig_scale[2]);
             this.entity.model.nodeTransformations[track_name].scale = result;
@@ -252,6 +287,7 @@ define([
 
     this.stop = function() {
       this.play_state = module.PLAY_STATE.STOP;
+      this.current_time = 0;
 
       //reset the node transforms on the entity to the default pose
       var cesium_nodes = {};
@@ -319,6 +355,16 @@ define([
       var json_text = decoder.decode(json_data_chunk);
       var gltf_json = JSON.parse(json_text);
       console.log("gltf JSON loaded successfully:");
+
+      // store links to parent nodes
+      for(var i = 0; i < gltf_json.nodes.length; i++) {
+        if(typeof gltf_json.nodes[i].children != 'undefined') {
+          for(var k = 0; k < gltf_json.nodes[i].children.length; k++) {
+            gltf_json.nodes[gltf_json.nodes[i].children[k]].parent = gltf_json.nodes[i].name;
+          }
+        }
+      }
+
       return gltf_json.nodes;
     }
 

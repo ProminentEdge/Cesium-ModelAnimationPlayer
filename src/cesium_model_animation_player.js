@@ -356,6 +356,7 @@ export class AnimationParser {
     let gltf_json = JSON.parse(json_text);
     console.log("gltf JSON loaded successfully:");
 
+    // store links to parent nodes
     for(var i = 0; i < gltf_json.nodes.length; i++) {
       if(typeof gltf_json.nodes[i].children != 'undefined') {
         for(var k = 0; k < gltf_json.nodes[i].children.length; k++) {
