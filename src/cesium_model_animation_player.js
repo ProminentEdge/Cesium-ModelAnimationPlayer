@@ -143,9 +143,8 @@ export class AnimationPlayer {
 
 
     for(var track_name in this.current_animation.tracks) {
-      //if(track_name != "SA_ROT_0FBXASC04548")
-      //  continue;
       let track = this.current_animation.tracks[track_name];
+      let node = this.animation_set.nodes[track_name];
       let curr_trans_keys = this.getKeysAtTime(track.translation_keys, this.current_time);
       let curr_rot_keys = this.getKeysAtTime(track.rotation_keys, this.current_time);
       let curr_scale_keys = this.getKeysAtTime(track.scale_keys, this.current_time);
@@ -154,8 +153,7 @@ export class AnimationPlayer {
       // Translation
       //--------------------------
       if(curr_trans_keys.length > 0) {
-
-        let orig_trans = this.animation_set.nodes[track_name].translation;
+        let orig_trans = node.translation;
         if(curr_trans_keys[0].time == curr_trans_keys[1].time) {
           let result = new Cesium.Cartesian3(curr_trans_keys[0].value[0] - orig_trans[0], curr_trans_keys[0].value[1] - orig_trans[1], curr_trans_keys[0].value[2] - orig_trans[2]);
           this.entity.model.nodeTransformations[track_name].translation = result;
@@ -177,13 +175,28 @@ export class AnimationPlayer {
       if(curr_rot_keys.length > 0) {
 
         //first store the original rotation and it's inverse so we can calculate the incremental rotations
-        let orig_rot = this.animation_set.nodes[track_name].rotation;
+        let orig_rot = node.rotation;
         let orig = new Cesium.Quaternion(orig_rot[0], orig_rot[1], orig_rot[2], orig_rot[3]);
-        let orig_inv = new Cesium.Quaternion(0,0,0,1);
+        let orig_inv = new Cesium.Quaternion();
         Cesium.Quaternion.inverse(orig, orig_inv);
+        let invMat = new Cesium.Matrix3();
+        Cesium.Matrix3.fromQuaternion(orig_inv, invMat);
 
         if(curr_rot_keys[0].time == curr_rot_keys[1].time) {
           let result = new Cesium.Quaternion(curr_rot_keys[0].value[0], curr_rot_keys[0].value[1], curr_rot_keys[0].value[2], curr_rot_keys[0].value[3]);
+
+          //isolate the axis
+          let resultAxis = new Cesium.Cartesian3(1,0,0);
+          let resultAngle = Cesium.Quaternion.computeAngle(result);
+          if(Math.abs(resultAngle) > Cesium.Math.EPSILON5)
+            Cesium.Quaternion.computeAxis(result, resultAxis);
+
+          //transform to local node space
+          Cesium.Matrix3.multiplyByVector(invMat, resultAxis, resultAxis);
+
+          //get the new quaternion expressed in local node space
+          Cesium.Quaternion.fromAxisAngle(resultAxis, resultAngle, result);
+          //calc the rotation difference
           Cesium.Quaternion.multiply(result, orig_inv, result);
           this.entity.model.nodeTransformations[track_name].rotation = result;
         } else {
@@ -193,10 +206,30 @@ export class AnimationPlayer {
           let start = new Cesium.Quaternion(curr_rot_keys[0].value[0], curr_rot_keys[0].value[1], curr_rot_keys[0].value[2], curr_rot_keys[0].value[3]);
           let end = new Cesium.Quaternion(curr_rot_keys[1].value[0], curr_rot_keys[1].value[1], curr_rot_keys[1].value[2], curr_rot_keys[1].value[3]);
 
+          //isolate the axis
+          let startAxis = new Cesium.Cartesian3(1,0,0);
+          let startAngle = Cesium.Quaternion.computeAngle(start);
+          if(Math.abs(startAngle) > Cesium.Math.EPSILON5)
+            Cesium.Quaternion.computeAxis(start, startAxis);
+
+          let endAxis = new Cesium.Cartesian3(1,0,0);
+          let endAngle = Cesium.Quaternion.computeAngle(end);
+          if(Math.abs(endAngle) > Cesium.Math.EPSILON5)
+            Cesium.Quaternion.computeAxis(end, endAxis);
+
+          //transform to local node space
+          Cesium.Matrix3.multiplyByVector(invMat, startAxis, startAxis);
+          Cesium.Matrix3.multiplyByVector(invMat, endAxis, endAxis);
+
+          //get the new quaternions expressed in local node space
+          Cesium.Quaternion.fromAxisAngle(startAxis, startAngle, start);
+          Cesium.Quaternion.fromAxisAngle(endAxis, endAngle, end);
+
+          //calc the rotation delta/difference
           Cesium.Quaternion.multiply(start, orig_inv, start);
           Cesium.Quaternion.multiply(end, orig_inv,  end);
 
-          let result = new Cesium.Quaternion(0,0,0,1);
+          let result = new Cesium.Quaternion();
           Cesium.Quaternion.slerp(start, end, t, result);
           this.entity.model.nodeTransformations[track_name].rotation = result;
         }
@@ -255,7 +288,7 @@ export class AnimationPlayer {
 
   stop() {
     this.play_state = PLAY_STATE.STOP;
-
+    this.current_time = 0;
     //reset the node transforms on the entity to the default pose
     let cesium_nodes = {};
     for(var node_name in this.animation_set.nodes) {
@@ -322,6 +355,15 @@ export class AnimationParser {
     let json_text = decoder.decode(json_data_chunk);
     let gltf_json = JSON.parse(json_text);
     console.log("gltf JSON loaded successfully:");
+
+    for(var i = 0; i < gltf_json.nodes.length; i++) {
+      if(typeof gltf_json.nodes[i].children != 'undefined') {
+        for(var k = 0; k < gltf_json.nodes[i].children.length; k++) {
+          gltf_json.nodes[gltf_json.nodes[i].children[k]].parent = gltf_json.nodes[i].name;
+        }
+      }
+    }
+
     return gltf_json.nodes;
   }
 
@@ -486,23 +528,23 @@ export class AnimationParser {
   }
 
   static async parseAnimationSetFromFile(glb_file) {
-      let array_buffer = await this._readFileAsync(glb_file);
+    let array_buffer = await this._readFileAsync(glb_file);
 
-      let animation_nodes = AnimationParser.parseAnimationNodesFromArrayBuffer(array_buffer);
-      // convert nodes to dictionary format
-      let nodes_dict = {};
-      for(var i = 0; i < animation_nodes.length; i++) {
-        nodes_dict[animation_nodes[i].name] = animation_nodes[i];
-        if(typeof nodes_dict[animation_nodes[i].name].translation === 'undefined')
-          nodes_dict[animation_nodes[i].name].translation = [0,0,0];
-        if(typeof nodes_dict[animation_nodes[i].name].rotation === 'undefined')
-          nodes_dict[animation_nodes[i].name].rotation = [0,0,0,1];
-        if(typeof nodes_dict[animation_nodes[i].name].scale === 'undefined')
-          nodes_dict[animation_nodes[i].name].scale = [0,0,0];
-      }
-
-      let animations = AnimationParser.parseAnimationsFromArrayBuffer(array_buffer);
-      console.log(nodes_dict);
-      return new AnimationSet(animations, nodes_dict);
+    let animation_nodes = AnimationParser.parseAnimationNodesFromArrayBuffer(array_buffer);
+    // convert nodes to dictionary format
+    let nodes_dict = {};
+    for(var i = 0; i < animation_nodes.length; i++) {
+      nodes_dict[animation_nodes[i].name] = animation_nodes[i];
+      if(typeof nodes_dict[animation_nodes[i].name].translation === 'undefined')
+        nodes_dict[animation_nodes[i].name].translation = [0,0,0];
+      if(typeof nodes_dict[animation_nodes[i].name].rotation === 'undefined')
+        nodes_dict[animation_nodes[i].name].rotation = [0,0,0,1];
+      if(typeof nodes_dict[animation_nodes[i].name].scale === 'undefined')
+        nodes_dict[animation_nodes[i].name].scale = [0,0,0];
     }
+
+    let animations = AnimationParser.parseAnimationsFromArrayBuffer(array_buffer);
+    console.log(nodes_dict);
+    return new AnimationSet(animations, nodes_dict);
+  }
 };
