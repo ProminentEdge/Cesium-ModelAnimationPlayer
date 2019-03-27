@@ -153,10 +153,22 @@ define([
         // Translation
         //--------------------------
         if(curr_trans_keys.length > 0) {
-
           var orig_trans = node.translation;
+
+          //first store the original rotation and it's inverse so we can calculate the incremental rotations
+          var orig_rot = node.rotation;
+          var orig = new Cesium.Quaternion(orig_rot[0], orig_rot[1], orig_rot[2], orig_rot[3]);
+          var orig_inv = new Cesium.Quaternion();
+          Cesium.Quaternion.inverse(orig, orig_inv);
+          var invMat = new Cesium.Matrix3();
+          Cesium.Matrix3.fromQuaternion(orig_inv, invMat);
+
           if(curr_trans_keys[0].time == curr_trans_keys[1].time) {
             var result = new Cesium.Cartesian3(curr_trans_keys[0].value[0] - orig_trans[0], curr_trans_keys[0].value[1] - orig_trans[1], curr_trans_keys[0].value[2] - orig_trans[2]);
+
+            //get the result expressed in local node space
+            Cesium.Matrix3.multiplyByVector(invMat, result, result);
+
             this.entity.model.nodeTransformations[track_name].translation = result;
           } else {
             var keyDelta = curr_trans_keys[1].time - curr_trans_keys[0].time;
@@ -164,8 +176,14 @@ define([
             var t = timeDelta/keyDelta;
             var start = new Cesium.Cartesian3(curr_trans_keys[0].value[0] - orig_trans[0], curr_trans_keys[0].value[1] - orig_trans[1], curr_trans_keys[0].value[2] - orig_trans[2]);
             var end = new Cesium.Cartesian3(curr_trans_keys[1].value[0] - orig_trans[0], curr_trans_keys[1].value[1] - orig_trans[1], curr_trans_keys[1].value[2] - orig_trans[2]);
+
+            //interpolate the position keys
             var result = new Cesium.Cartesian3();
             Cesium.Cartesian3.lerp(start, end, t, result);
+
+            //get the result expressed in local node space
+            Cesium.Matrix3.multiplyByVector(invMat, result, result);
+
             this.entity.model.nodeTransformations[track_name].translation = result;
           }
         }
@@ -206,31 +224,25 @@ define([
             var start = new Cesium.Quaternion(curr_rot_keys[0].value[0], curr_rot_keys[0].value[1], curr_rot_keys[0].value[2], curr_rot_keys[0].value[3]);
             var end = new Cesium.Quaternion(curr_rot_keys[1].value[0], curr_rot_keys[1].value[1], curr_rot_keys[1].value[2], curr_rot_keys[1].value[3]);
 
-            //isolate the axis
-            var startAxis = new Cesium.Cartesian3(1,0,0);
-            var startAngle = Cesium.Quaternion.computeAngle(start);
-            if(Math.abs(startAngle) > Cesium.Math.EPSILON5)
-              Cesium.Quaternion.computeAxis(start, startAxis);
-
-            var endAxis = new Cesium.Cartesian3(1,0,0);
-            var endAngle = Cesium.Quaternion.computeAngle(end);
-            if(Math.abs(endAngle) > Cesium.Math.EPSILON5)
-              Cesium.Quaternion.computeAxis(end, endAxis);
-
-            //transform to local node space
-            Cesium.Matrix3.multiplyByVector(invMat, startAxis, startAxis);
-            Cesium.Matrix3.multiplyByVector(invMat, endAxis, endAxis);
-
-            //get the new quaternions expressed in local node space
-            Cesium.Quaternion.fromAxisAngle(startAxis, startAngle, start);
-            Cesium.Quaternion.fromAxisAngle(endAxis, endAngle, end);
-
-            //calc the rotation delta/difference
-            Cesium.Quaternion.multiply(start, orig_inv, start);
-            Cesium.Quaternion.multiply(end, orig_inv,  end);
-
+            //slerp the rotation keys
             var result = new Cesium.Quaternion();
             Cesium.Quaternion.slerp(start, end, t, result);
+
+            //isolate the axis
+            var resultAxis = new Cesium.Cartesian3(1,0,0);
+            var resultAngle = Cesium.Quaternion.computeAngle(result);
+            if(Math.abs(resultAngle) > Cesium.Math.EPSILON5)
+              Cesium.Quaternion.computeAxis(result, resultAxis);
+
+            //transform to local node space
+            Cesium.Matrix3.multiplyByVector(invMat, resultAxis, resultAxis);
+
+            //get the new quaternion expressed in local node space
+            Cesium.Quaternion.fromAxisAngle(resultAxis, resultAngle, result);
+
+            //calc the rotation delta/difference
+            Cesium.Quaternion.multiply(result, orig_inv, result);
+
             this.entity.model.nodeTransformations[track_name].rotation = result;
           }
         }
