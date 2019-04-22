@@ -152,7 +152,7 @@ export class AnimationPlayer {
       //--------------------------
       // Translation
       //--------------------------
-      if(curr_trans_keys.length > 0) {
+      if(typeof curr_trans_keys !== 'undefined' && curr_trans_keys.length > 0) {
         let orig_trans = node.translation;
 
         let orig_rot = node.rotation;
@@ -188,7 +188,7 @@ export class AnimationPlayer {
       //--------------------------
       // Rotation
       //--------------------------
-      if(curr_rot_keys.length > 0) {
+      if(typeof curr_rot_keys !== 'undefined' && curr_rot_keys.length > 0) {
 
         //first store the original rotation and it's inverse so we can calculate the incremental rotations
         let orig_rot = node.rotation;
@@ -248,7 +248,7 @@ export class AnimationPlayer {
       //--------------------------
       // Scale
       //--------------------------
-      if(curr_scale_keys.length > 0) {
+      if(typeof curr_scale_keys !== 'undefined' && curr_scale_keys.length > 0) {
         let orig_scale = this.animation_set.nodes[track_name].scale;
 
         if(curr_scale_keys[0].time == curr_scale_keys[1].time) {

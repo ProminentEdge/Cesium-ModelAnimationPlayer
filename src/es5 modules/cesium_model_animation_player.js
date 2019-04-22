@@ -152,7 +152,7 @@ define([
         //--------------------------
         // Translation
         //--------------------------
-        if(curr_trans_keys.length > 0) {
+        if(typeof curr_trans_keys !== 'undefined' && curr_trans_keys.length > 0) {
           var orig_trans = node.translation;
 
           //first store the original rotation and it's inverse so we can calculate the incremental rotations
@@ -191,7 +191,7 @@ define([
         //--------------------------
         // Rotation
         //--------------------------
-        if(curr_rot_keys.length > 0) {
+        if(typeof curr_rot_keys !== 'undefined' && curr_rot_keys.length > 0) {
 
           //first store the original rotation and it's inverse so we can calculate the incremental rotations
           var orig_rot = node.rotation;
@@ -250,7 +250,7 @@ define([
         //--------------------------
         // Scale
         //--------------------------
-        if(curr_scale_keys.length > 0) {
+        if(typeof curr_scale_keys !== 'undefined' && curr_scale_keys.length > 0) {
           var orig_scale = node.scale;
           if(curr_scale_keys[0].time == curr_scale_keys[1].time) {
             var result = Cesium.Cartesian3(curr_scale_keys[0].value[0] / orig_scale[0], curr_scale_keys[0].value[1] / orig_scale[1], curr_scale_keys[0].value[2] / orig_scale[2]);
