@@ -407,112 +407,114 @@ export class AnimationParser {
     //--------------------------------------------------
     // get and process all animations
     //--------------------------------------------------
-    for(var i = 0; i < gltf_json.animations.length; i++) {
-      let anim_name = gltf_json.animations[i].name;
-      if(typeof anim_name == 'undefined' || anim_name == "")
-        anim_name = "animation_" + i;
-      let curr_animation = new Animation(anim_name);
-      console.log("processing animation: " + anim_name);
+    if(typeof gltf_json.animations !== 'undefined') {
+      for(var i = 0; i < gltf_json.animations.length; i++) {
+        let anim_name = gltf_json.animations[i].name;
+        if(typeof anim_name == 'undefined' || anim_name == "")
+          anim_name = "animation_" + i;
+        let curr_animation = new Animation(anim_name);
+        console.log("processing animation: " + anim_name);
 
-      for(var k = 0; k < gltf_json.animations[i].channels.length; k++) {
-        let channel = gltf_json.animations[i].channels[k];
+        for(var k = 0; k < gltf_json.animations[i].channels.length; k++) {
+          let channel = gltf_json.animations[i].channels[k];
 
-        // the following will be either "translation, rotation, or scale"
-        let dof_type = channel.target.path;
+          // the following will be either "translation, rotation, or scale"
+          let dof_type = channel.target.path;
 
-        let node = gltf_json.nodes[channel.target.node];
-        if(typeof node == 'undefined') {
-          console.warn("node is undefined for channel " + k);
-          continue;
-        }
-
-        let node_name = node.name;
-        if(typeof node_name == 'undefined' || node.name == "") {
-          node_name = "node_" + channel.target.node;
-        }
-
-        // add a new track to this animation for the node if it does not exist already
-        if(typeof curr_animation.tracks[node_name] == 'undefined')
-          curr_animation.tracks[node_name] = new AnimationTrack();
-
-        let sampler = gltf_json.animations[i].samplers[channel.sampler];
-
-        //--------------------------------------------------
-        // get input accessor (keyframe times for this channel's sampler) and process the data for it
-        //--------------------------------------------------
-        let input = gltf_json.accessors[sampler.input];
-        //console.log("min: " + input.min + " max: " + input.max);
-
-        let input_accessor_byte_offset =  (typeof input.byteOffset == 'undefined' ? 0 : input.byteOffset);
-        if(input.componentType != 5126)
-          console.warn("input component type is not a float!");
-
-        // each element (keyframe timestamp) is a 4 byte float
-        let input_element_size = 4;
-
-        //use the buffer view and accessor to offset into the binary buffer to retrieve our data
-        let input_bufferView = gltf_json.bufferViews[input.bufferView];
-        let input_accessor_data_offset = input_bufferView.byteOffset + input_accessor_byte_offset;
-        let input_bin = bin_data_chunk.slice(input_accessor_data_offset, input_accessor_data_offset + input_element_size * input.count);
-        let input_dv = new DataView(input_bin);
-
-        // parse and store each timestamp out of the buffer
-        let timestamps = [];
-        for(var j = 0; j < input.count; j++) {
-          let timestamp = input_dv.getFloat32(j*4, true);
-          if(timestamp > curr_animation.duration) {
-            curr_animation.duration = timestamp;
+          let node = gltf_json.nodes[channel.target.node];
+          if(typeof node == 'undefined') {
+            console.warn("node is undefined for channel " + k);
+            continue;
           }
-          timestamps.push(timestamp);
+
+          let node_name = node.name;
+          if(typeof node_name == 'undefined' || node.name == "") {
+            node_name = "node_" + channel.target.node;
+          }
+
+          // add a new track to this animation for the node if it does not exist already
+          if(typeof curr_animation.tracks[node_name] == 'undefined')
+            curr_animation.tracks[node_name] = new AnimationTrack();
+
+          let sampler = gltf_json.animations[i].samplers[channel.sampler];
+
+          //--------------------------------------------------
+          // get input accessor (keyframe times for this channel's sampler) and process the data for it
+          //--------------------------------------------------
+          let input = gltf_json.accessors[sampler.input];
+          //console.log("min: " + input.min + " max: " + input.max);
+
+          let input_accessor_byte_offset =  (typeof input.byteOffset == 'undefined' ? 0 : input.byteOffset);
+          if(input.componentType != 5126)
+            console.warn("input component type is not a float!");
+
+          // each element (keyframe timestamp) is a 4 byte float
+          let input_element_size = 4;
+
+          //use the buffer view and accessor to offset into the binary buffer to retrieve our data
+          let input_bufferView = gltf_json.bufferViews[input.bufferView];
+          let input_accessor_data_offset = input_bufferView.byteOffset + input_accessor_byte_offset;
+          let input_bin = bin_data_chunk.slice(input_accessor_data_offset, input_accessor_data_offset + input_element_size * input.count);
+          let input_dv = new DataView(input_bin);
+
+          // parse and store each timestamp out of the buffer
+          let timestamps = [];
+          for(var j = 0; j < input.count; j++) {
+            let timestamp = input_dv.getFloat32(j*4, true);
+            if(timestamp > curr_animation.duration) {
+              curr_animation.duration = timestamp;
+            }
+            timestamps.push(timestamp);
+          }
+
+          //--------------------------------------------------
+          // get output accessor (keyframe values for this channel's sampler) and process the data for it
+          //--------------------------------------------------
+          let output = gltf_json.accessors[sampler.output];
+
+          let output_accessor_byte_offset =  (typeof output.byteOffset == 'undefined' ? 0 : output.byteOffset);
+
+          // we only care about VEC3 and VEC4 since we are only dealing with rotation, scale, and translation,
+          // and we are going to assume they are floating point (componentType = 5126 according to gltf spec)
+          if(output.componentType != 5126)
+            console.warn("output component type is not a float!");
+
+          let output_component_count = (output.type == "VEC3" ? 3 : 4);
+          // 4 byte floats in according to gltf spec
+          let output_element_size = output_component_count * 4;
+
+          //use the buffer view and accessor to offset into the binary buffer to retrieve our value data
+          let output_bufferView = gltf_json.bufferViews[output.bufferView];
+          let output_accessor_data_offset = output_bufferView.byteOffset + output_accessor_byte_offset;
+          let output_bin = bin_data_chunk.slice(output_accessor_data_offset, output_accessor_data_offset + output_element_size * output.count);
+          let output_dv = new DataView(output_bin);
+
+          // parse and store each value
+          let values = [];
+          for(var j = 0; j < output.count * output_component_count; j += output_component_count) {
+            let value = [];
+            for(var l = 0; l < output_component_count; l++) {
+              value.push(output_dv.getFloat32(j*4 + l*4, true));
+            }
+            values.push(value);
+          }
+
+          if(dof_type == "translation") {
+            for(var j = 0; j < output.count; j++) {
+              curr_animation.tracks[node_name].translation_keys.push(new AnimationKey(timestamps[j], values[j]));
+            }
+          } else if(dof_type == "rotation") {
+            for(var j = 0; j < output.count; j++) {
+              curr_animation.tracks[node_name].rotation_keys.push(new AnimationKey(timestamps[j], values[j]));
+            }
+          } else if(dof_type == "scale") {
+            for(var j = 0; j < output.count; j++) {
+              curr_animation.tracks[node_name].scale_keys.push(new AnimationKey(timestamps[j], values[j]));
+            }
+          }
         }
-
-        //--------------------------------------------------
-        // get output accessor (keyframe values for this channel's sampler) and process the data for it
-        //--------------------------------------------------
-        let output = gltf_json.accessors[sampler.output];
-
-        let output_accessor_byte_offset =  (typeof output.byteOffset == 'undefined' ? 0 : output.byteOffset);
-
-        // we only care about VEC3 and VEC4 since we are only dealing with rotation, scale, and translation,
-        // and we are going to assume they are floating point (componentType = 5126 according to gltf spec)
-        if(output.componentType != 5126)
-          console.warn("output component type is not a float!");
-
-        let output_component_count = (output.type == "VEC3" ? 3 : 4);
-        // 4 byte floats in according to gltf spec
-        let output_element_size = output_component_count * 4;
-
-        //use the buffer view and accessor to offset into the binary buffer to retrieve our value data
-        let output_bufferView = gltf_json.bufferViews[output.bufferView];
-        let output_accessor_data_offset = output_bufferView.byteOffset + output_accessor_byte_offset;
-        let output_bin = bin_data_chunk.slice(output_accessor_data_offset, output_accessor_data_offset + output_element_size * output.count);
-        let output_dv = new DataView(output_bin);
-
-        // parse and store each value
-        let values = [];
-        for(var j = 0; j < output.count * output_component_count; j += output_component_count) {
-          let value = [];
-          for(var l = 0; l < output_component_count; l++) {
-            value.push(output_dv.getFloat32(j*4 + l*4, true));
-          }
-          values.push(value);
-        }
-
-        if(dof_type == "translation") {
-          for(var j = 0; j < output.count; j++) {
-            curr_animation.tracks[node_name].translation_keys.push(new AnimationKey(timestamps[j], values[j]));
-          }
-        } else if(dof_type == "rotation") {
-          for(var j = 0; j < output.count; j++) {
-            curr_animation.tracks[node_name].rotation_keys.push(new AnimationKey(timestamps[j], values[j]));
-          }
-        } else if(dof_type == "scale") {
-          for(var j = 0; j < output.count; j++) {
-            curr_animation.tracks[node_name].scale_keys.push(new AnimationKey(timestamps[j], values[j]));
-          }
-        }
+        animations.push(curr_animation);
       }
-      animations.push(curr_animation);
     }
     return animations;
   }
