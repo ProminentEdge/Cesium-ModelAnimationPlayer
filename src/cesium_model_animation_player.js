@@ -43,11 +43,17 @@ export class AnimationPlayer {
 
     // set initial node positions for Cesium entity
     let cesium_nodes = {};
+
     for(var node_name in this.animation_set.nodes) {
-      cesium_nodes[node_name] = {
-        translation: new Cesium.Cartesian3(0, 0, 0),
-        rotation: new Cesium.Cartesian4(0, 0, 0, 1),
-        scale: new Cesium.Cartesian3(1, 1, 1)
+      if(typeof this.entity.model.nodeTransformations != "undefined" &&
+         typeof this.entity.model.nodeTransformations[node_name] != "undefined"){
+        cesium_nodes[node_name] = this.entity.model.nodeTransformations[node_name];
+      } else {
+        cesium_nodes[node_name] = {
+          translation: new Cesium.Cartesian3(0, 0, 0),
+          rotation: new Cesium.Cartesian4(0, 0, 0, 1),
+          scale: new Cesium.Cartesian3(1, 1, 1)
+        }
       }
     }
 
