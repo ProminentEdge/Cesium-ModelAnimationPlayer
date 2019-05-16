@@ -160,14 +160,7 @@ define([
         //--------------------------
         if(typeof curr_trans_keys !== 'undefined' && curr_trans_keys.length > 0) {
           var orig_trans = node.translation;
-
-          //first store the original rotation and it's inverse so we can calculate the incremental rotations
-          var orig_rot = node.rotation;
-          var orig = new Cesium.Quaternion(orig_rot[0], orig_rot[1], orig_rot[2], orig_rot[3]);
-          var orig_inv = new Cesium.Quaternion();
-          Cesium.Quaternion.inverse(orig, orig_inv);
-          var invMat = new Cesium.Matrix3();
-          Cesium.Matrix3.fromQuaternion(orig_inv, invMat);
+          var invMat = node.inv_rotation_matrix;
 
           if(curr_trans_keys[0].time == curr_trans_keys[1].time) {
             var result = new Cesium.Cartesian3(curr_trans_keys[0].value[0] - orig_trans[0], curr_trans_keys[0].value[1] - orig_trans[1], curr_trans_keys[0].value[2] - orig_trans[2]);
@@ -180,12 +173,17 @@ define([
             var keyDelta = curr_trans_keys[1].time - curr_trans_keys[0].time;
             var timeDelta = this.current_time - curr_trans_keys[0].time;
             var t = timeDelta/keyDelta;
-            var start = new Cesium.Cartesian3(curr_trans_keys[0].value[0] - orig_trans[0], curr_trans_keys[0].value[1] - orig_trans[1], curr_trans_keys[0].value[2] - orig_trans[2]);
-            var end = new Cesium.Cartesian3(curr_trans_keys[1].value[0] - orig_trans[0], curr_trans_keys[1].value[1] - orig_trans[1], curr_trans_keys[1].value[2] - orig_trans[2]);
+            var start = new Cesium.Cartesian3(curr_trans_keys[0].value[0], curr_trans_keys[0].value[1], curr_trans_keys[0].value[2]);
+            var end = new Cesium.Cartesian3(curr_trans_keys[1].value[0], curr_trans_keys[1].value[1], curr_trans_keys[1].value[2]);
 
             //interpolate the position keys
             var result = new Cesium.Cartesian3();
             Cesium.Cartesian3.lerp(start, end, t, result);
+
+            //account for delta / relative offset from original translation
+            result.x -= orig_trans[0];
+            result.y -= orig_trans[1];
+            result.z -= orig_trans[2];
 
             //get the result expressed in local node space
             Cesium.Matrix3.multiplyByVector(invMat, result, result);
@@ -199,13 +197,8 @@ define([
         //--------------------------
         if(typeof curr_rot_keys !== 'undefined' && curr_rot_keys.length > 0) {
 
-          //first store the original rotation and it's inverse so we can calculate the incremental rotations
-          var orig_rot = node.rotation;
-          var orig = new Cesium.Quaternion(orig_rot[0], orig_rot[1], orig_rot[2], orig_rot[3]);
-          var orig_inv = new Cesium.Quaternion();
-          Cesium.Quaternion.inverse(orig, orig_inv);
-          let invMat = new Cesium.Matrix3();
-          Cesium.Matrix3.fromQuaternion(orig_inv, invMat);
+          var orig_inv = node.inv_rotation;
+          var invMat = node.inv_rotation_matrix;
 
           if(curr_rot_keys[0].time == curr_rot_keys[1].time) {
             var result = new Cesium.Quaternion(curr_rot_keys[0].value[0], curr_rot_keys[0].value[1], curr_rot_keys[0].value[2], curr_rot_keys[0].value[3]);
@@ -265,10 +258,15 @@ define([
             var keyDelta = curr_scale_keys[1].time - curr_scale_keys[0].time;
             var timeDelta = this.current_time - curr_scale_keys[0].time;
             var t = timeDelta/keyDelta;
-            var start = new Cesium.Cartesian3(curr_scale_keys[0].value[0] / orig_scale[0], curr_scale_keys[0].value[1] / orig_scale[1], curr_scale_keys[0].value[2] / orig_scale[2]);
-            var end = new Cesium.Cartesian3(curr_scale_keys[1].value[0] / orig_scale[0], curr_scale_keys[1].value[1] / orig_scale[1], curr_scale_keys[1].value[2] / orig_scale[2]);
+            var start = new Cesium.Cartesian3(curr_scale_keys[0].value[0], curr_scale_keys[0].value[1], curr_scale_keys[0].value[2]);
+            var end = new Cesium.Cartesian3(curr_scale_keys[1].value[0], curr_scale_keys[1].value[1], curr_scale_keys[1].value[2]);
             var result = new Cesium.Cartesian3();
             Cesium.Cartesian3.lerp(start, end, t, result);
+
+            //account for delta / relative offset from original scale
+            result.x /= orig_scale[0];
+            result.y /= orig_scale[1];
+            result.z /= orig_scale[2];
             this.entity.model.nodeTransformations[track_name].scale = result;
           }
         }
@@ -537,8 +535,22 @@ define([
         nodes_dict[animation_nodes[i].name] = animation_nodes[i];
         if(typeof nodes_dict[animation_nodes[i].name].translation === 'undefined')
           nodes_dict[animation_nodes[i].name].translation = [0,0,0];
-        if(typeof nodes_dict[animation_nodes[i].name].rotation === 'undefined')
+        if(typeof nodes_dict[animation_nodes[i].name].rotation === 'undefined') {
           nodes_dict[animation_nodes[i].name].rotation = [0,0,0,1];
+          nodes_dict[animation_nodes[i].name].inv_rotation_matrix = Cesium.Matrix3.IDENTITY;
+          nodes_dict[animation_nodes[i].name].inv_rotation = new Cesium.Quaternion(0,0,0,1);
+        }
+        else {
+          //compute and store the inverse rotation matrix and quaternion for future calculations
+          var orig_rot = nodes_dict[animation_nodes[i].name].rotation;
+          var orig_quat = new Cesium.Quaternion(orig_rot[0], orig_rot[1], orig_rot[2], orig_rot[3]);
+          var orig_quat_inv = new Cesium.Quaternion();
+          Cesium.Quaternion.inverse(orig_quat, orig_quat_inv);
+          var invMat = new Cesium.Matrix3();
+          Cesium.Matrix3.fromQuaternion(orig_quat_inv, invMat);
+          nodes_dict[animation_nodes[i].name].inv_rotation_matrix = invMat;
+          nodes_dict[animation_nodes[i].name].inv_rotation = orig_quat_inv;
+        }
         if(typeof nodes_dict[animation_nodes[i].name].scale === 'undefined')
           nodes_dict[animation_nodes[i].name].scale = [0,0,0];
       }
@@ -558,8 +570,22 @@ define([
         nodes_dict[animation_nodes[i].name] = animation_nodes[i];
         if(typeof nodes_dict[animation_nodes[i].name].translation === 'undefined')
           nodes_dict[animation_nodes[i].name].translation = [0,0,0];
-        if(typeof nodes_dict[animation_nodes[i].name].rotation === 'undefined')
+        if(typeof nodes_dict[animation_nodes[i].name].rotation === 'undefined') {
           nodes_dict[animation_nodes[i].name].rotation = [0,0,0,1];
+          nodes_dict[animation_nodes[i].name].inv_rotation_matrix = Cesium.Matrix3.IDENTITY;
+          nodes_dict[animation_nodes[i].name].inv_rotation = new Cesium.Quaternion(0,0,0,1);
+        }
+        else {
+          //compute and store the inverse rotation matrix and quaternion for future calculations
+          var orig_rot = nodes_dict[animation_nodes[i].name].rotation;
+          var orig_quat = new Cesium.Quaternion(orig_rot[0], orig_rot[1], orig_rot[2], orig_rot[3]);
+          var orig_quat_inv = new Cesium.Quaternion();
+          Cesium.Quaternion.inverse(orig_quat, orig_quat_inv);
+          var invMat = new Cesium.Matrix3();
+          Cesium.Matrix3.fromQuaternion(orig_quat_inv, invMat);
+          nodes_dict[animation_nodes[i].name].inv_rotation_matrix = invMat;
+          nodes_dict[animation_nodes[i].name].inv_rotation = orig_quat_inv;
+        }
         if(typeof nodes_dict[animation_nodes[i].name].scale === 'undefined')
           nodes_dict[animation_nodes[i].name].scale = [0,0,0];
       }
