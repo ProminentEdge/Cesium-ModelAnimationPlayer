@@ -152,8 +152,7 @@ define([
 
 
       for(var track_name in this.current_animation.tracks) {
-        //if(track_name != "SA_ROT_0FBXASC04548")
-        //  continue;
+
         var track = this.current_animation.tracks[track_name];
         var node = this.animation_set.nodes[track_name];
         var curr_trans_keys = this.getKeysAtTime(track.translation_keys, this.current_time);
@@ -576,7 +575,7 @@ define([
           nodes_dict[animation_nodes[i].name].scale = [0,0,0];
       }
 
-      var animations = this.parseAnimationsaFromArrayBuffer(array_buffer);
+      var animations = this.parseAnimationsFromArrayBuffer(array_buffer);
       console.log(nodes_dict);
       return new module.AnimationSet(animations, nodes_dict);
     }
