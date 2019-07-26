@@ -114,8 +114,14 @@ export class AnimationPlayer {
     console.error("Can't play animation: " + animation_name + " does not exist");
   }
 
+  _clearUpdateInterval() {
+    clearInterval(this.interval_id);
+    this.interval_id = -1;
+  }
+
   _update() {
-    this.setTime(this.current_time + this._frame_duration * this.speed);
+    if(this.play_state === PLAY_STATE.PLAY)
+      this.setTime(this.current_time + this._frame_duration * this.speed);
   }
 
   setPercent(percent) {
@@ -130,9 +136,6 @@ export class AnimationPlayer {
   }
 
   setTime(current_time) {
-    if(this.play_state === PLAY_STATE.PAUSE)
-      return;
-
     this.current_time = current_time;
     if(this.speed > 0) {
       if(this.current_time > this.current_animation.duration) {
@@ -319,16 +322,15 @@ export class AnimationPlayer {
       }
     }
     this.entity.model.nodeTransformations = cesium_nodes;
+    this._clearUpdateInterval();
 
-    //clear the update interval
-    clearInterval(this.interval_id);
-    this.interval_id = -1;
   }
 
   pause() {
     //no need to pause if we are not playing
     if(this.play_state === PLAY_STATE.PLAY)
       this.play_state = PLAY_STATE.PAUSE;
+    this._clearUpdateInterval();
   }
 }
 
